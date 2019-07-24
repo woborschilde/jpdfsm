@@ -11,13 +11,13 @@
 <Pane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8.0.172-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="sample.Controller">
    <children>
       <Label layoutX="14.0" layoutY="25.0" text=".ini Selector File:" />
-      <TextField editable="false" layoutX="106.0" layoutY="21.0" prefHeight="25.0" prefWidth="386.0" />
+      <TextField fx:id="txtSelectFile" editable="false" layoutX="106.0" layoutY="21.0" prefHeight="25.0" prefWidth="386.0" />
       <Button layoutX="501.0" layoutY="21.0" mnemonicParsing="false" onAction="#browseSelectorFile" prefHeight="25.0" prefWidth="85.0" text="Browse..." />
       <Label layoutX="17.0" layoutY="60.0" text="PDF Input Path:" />
-      <TextField editable="false" layoutX="106.0" layoutY="56.0" prefHeight="25.0" prefWidth="386.0" />
+      <TextField fx:id="txtInputPath" editable="false" layoutX="106.0" layoutY="56.0" prefHeight="25.0" prefWidth="386.0" />
       <Button layoutX="501.0" layoutY="56.0" mnemonicParsing="false" onAction="#browseInputPath" prefHeight="25.0" prefWidth="85.0" text="Browse..." />
       <Label layoutX="14.0" layoutY="95.0" text=".pdf Output File:" />
-      <TextField editable="false" layoutX="106.0" layoutY="91.0" prefHeight="25.0" prefWidth="386.0" />
+      <TextField fx:id="txtOutputFile" editable="false" layoutX="106.0" layoutY="91.0" prefHeight="25.0" prefWidth="386.0" />
       <Button layoutX="501.0" layoutY="91.0" mnemonicParsing="false" onAction="#browseOutputFile" prefHeight="25.0" prefWidth="85.0" text="Browse..." />
       <Button layoutX="501.0" layoutY="128.0" mnemonicParsing="false" onAction="#browseOutputFile" prefHeight="38.0" prefWidth="85.0" text="Merge!">
          <font>
