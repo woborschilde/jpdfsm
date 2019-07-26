@@ -16,6 +16,7 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
@@ -30,37 +31,69 @@ public class Controller {
     @FXML private TextField txtInputPath;
     @FXML private TextField txtOutputFile;
     @FXML private Button btnMerge;
+    @FXML private TextArea txtLog;
 
     private String selectFile = "";
     private String inputPath = "";
     private String saveFile = "";
+    private String configFile = "config.ini";
 
-    public void setup(Stage stage) {
+    public void setup(Stage stage) throws InvalidFileFormatException, IOException {
         this.stage = stage;
         this.scene = stage.getScene();
+        loadConfig();
     }
 
-    public void browseSelectorFile() {
+    private void loadConfig() throws InvalidFileFormatException, IOException {
+    	Wini config = new Wini(new File(configFile));
+    	
+    	String confSelectFile = config.get("General", "SelectFile");
+    	String confInputPath = config.get("General", "InputPath");
+    	String confOutputFile = config.get("General", "SaveFile");
+    	
+    	txtSelectFile.setText(confSelectFile);
+    	txtInputPath.setText(confInputPath);
+    	txtOutputFile.setText(confOutputFile);
+    	
+    	mergeButtonAvailable();
+    }
+    
+    public void browseSelectorFile() throws InvalidFileFormatException, IOException {
         FileChooser fileChooser = new FileChooser();
         File file = fileChooser.showOpenDialog(stage);
         selectFile = file != null ? file.getAbsoluteFile().toString() : "";
         txtSelectFile.setText(selectFile);
+        
+        Wini config = new Wini(new File(configFile));
+        config.put("General", "SelectFile", selectFile);
+        config.store();
+        
         mergeButtonAvailable();
     }
 
-    public void browseInputPath() {
+    public void browseInputPath() throws InvalidFileFormatException, IOException {
         DirectoryChooser dirChooser = new DirectoryChooser();
         File dir = dirChooser.showDialog(stage);
         inputPath = dir != null ? dir.getAbsolutePath() + "\\" : "";
         txtInputPath.setText(inputPath);
+        
+        Wini config = new Wini(new File(configFile));
+        config.put("General", "InputPath", inputPath);
+        config.store();
+        
         mergeButtonAvailable();
     }
 
-    public void browseOutputFile() {
+    public void browseOutputFile() throws InvalidFileFormatException, IOException {
         FileChooser fileChooser = new FileChooser();
         File file = fileChooser.showSaveDialog(stage);
         saveFile = file != null ? file.getAbsoluteFile().toString() : "";
         txtOutputFile.setText(saveFile);
+        
+        Wini config = new Wini(new File(configFile));
+        config.put("General", "SaveFile", saveFile);
+        config.store();
+        
         mergeButtonAvailable();
     }
     
@@ -73,6 +106,7 @@ public class Controller {
     }
     
     public void merge() throws InvalidFileFormatException, IOException, DocumentException {
+    	btnMerge.setDisable(true); txtLog.clear();
     	PdfReader pdfReader = null;
     	
     	// Preparation
@@ -82,24 +116,32 @@ public class Controller {
     	String inputFileName = ""; String selectPages = ""; String[] selectPagesArray;
     	Document pdfIn = null; Document pdfOut = new Document(); PdfCopy copy = null;
     	
-    	// Log here
+    	txtLog.appendText(description + "\n\n");
+    	
+    	copy = new PdfCopy(pdfOut, new FileOutputStream(saveFile));
+		pdfOut.open();
     	
     	// For each file
     	for (int i = 1; i <= inputFilesCount; i++) {
     		// Preparation
-    		// Log here
+    		txtLog.appendText("Using file " + i + " of " + inputFilesCount + "...\n");
     		inputFileName = selectIni.get("Input" + i, "InputFile");
     		pdfReader = new PdfReader(inputPath + inputFileName + ".pdf");
-    		copy = new PdfCopy(pdfOut, new FileOutputStream(saveFile));
     		
     		selectPages = selectIni.get("Input" + i, "SelectPages");
     		selectPagesArray = selectPages.split(",");
     		
     		for (String p : selectPagesArray) {
-    			// Log here
-    			
+    			txtLog.appendText("Copying page " + p + "...\n");
     			copy.addPage(copy.getImportedPage(pdfReader, Integer.valueOf(p)));
     		}
+    		
+    		txtLog.appendText("\n");
     	}
+    	
+    	pdfOut.close();
+    	
+    	btnMerge.setDisable(false);
+    	txtLog.appendText("Finished.");
     }
 }
