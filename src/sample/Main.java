@@ -13,7 +13,7 @@ public class Main extends Application {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("sample.fxml"));
         Parent root = loader.load();
         Controller controller = loader.getController();
-        controller.setup(primaryStage);
+        controller.setup(primaryStage, getHostServices());
 
         primaryStage.setTitle("Java PDF Select and Merge");
         primaryStage.setScene(new Scene(root, 600, 400));

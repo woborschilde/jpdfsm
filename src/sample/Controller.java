@@ -12,12 +12,11 @@ import org.ini4j.InvalidFileFormatException;
 import org.ini4j.Wini;
 
 import com.itextpdf.text.Document;
-import com.itextpdf.text.DocumentException;
-import com.itextpdf.text.pdf.BadPdfFormatException;
 import com.itextpdf.text.pdf.PdfCopy;
 import com.itextpdf.text.pdf.PdfReader;
 
-import javafx.event.ActionEvent;
+import javafx.animation.PauseTransition;
+import javafx.application.HostServices;
 import javafx.fxml.FXML;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -35,11 +34,13 @@ public class Controller {
 
     private Stage stage;
     private Scene scene;
+    private HostServices hostServices;
 
     @FXML private TextField txtSelectFile;
     @FXML private TextField txtInputPath;
     @FXML private TextField txtOutputFile;
     @FXML private Button btnMerge;
+    @FXML private Button btnResult;
     @FXML private TextArea txtLog;
 
     private String selectFile = "";
@@ -47,9 +48,10 @@ public class Controller {
     private String saveFile = "";
     private String configFile = "";
 
-    public void setup(Stage stage) {
+    public void setup(Stage stage, HostServices hostServices) {
         this.stage = stage;
         this.scene = stage.getScene();
+        this.hostServices = hostServices;
         loadConfig();
     }
 
@@ -91,31 +93,38 @@ public class Controller {
     public void browseSelectorFile() {
         FileChooser fileChooser = new FileChooser();
         File file = fileChooser.showOpenDialog(stage);
-        selectFile = file != null ? file.getAbsoluteFile().toString() : selectFile;
-        txtSelectFile.setText(selectFile);
-        
-        write("General", "SelectFile", selectFile);
-        mergeButtonAvailable();
+        if (file != null) {
+        	selectFile = file.getAbsoluteFile().toString();
+            txtSelectFile.setText(selectFile);
+            
+            write("General", "SelectFile", selectFile);
+            mergeButtonAvailable();
+        }
     }
 
     public void browseInputPath() {
         DirectoryChooser dirChooser = new DirectoryChooser();
         File dir = dirChooser.showDialog(stage);
-        inputPath = dir != null ? dir.getAbsolutePath() + "/" : inputPath;
-        txtInputPath.setText(inputPath);
-        
-        write("General", "InputPath", inputPath);        
-        mergeButtonAvailable();
+        if (dir != null) {
+        	inputPath = dir.getAbsolutePath() + "/";
+            txtInputPath.setText(inputPath);
+            
+            write("General", "InputPath", inputPath);        
+            mergeButtonAvailable();
+        }
     }
 
     public void browseOutputFile() {
         FileChooser fileChooser = new FileChooser();
         File file = fileChooser.showSaveDialog(stage);
-        saveFile = file != null ? file.getAbsoluteFile().toString() : saveFile;
-        txtOutputFile.setText(saveFile);
-        
-        write("General", "SaveFile", saveFile);
-        mergeButtonAvailable();
+        if (file != null) {
+        	saveFile = file.getAbsoluteFile().toString();
+            txtOutputFile.setText(saveFile);
+            btnResult.setDisable(true);
+            
+            write("General", "SaveFile", saveFile);
+            mergeButtonAvailable();
+        }
     }
     
     private void write(String section, String key, String value) {
@@ -142,8 +151,16 @@ public class Controller {
     	}
     }
     
+    public void mergeButton() {
+    	btnMerge.setDisable(true); btnResult.setDisable(true);
+    	txtLog.clear(); txtLog.appendText("Please wait, this can take a few seconds...");
+    	PauseTransition pause = new PauseTransition(javafx.util.Duration.millis(100));
+    	pause.setOnFinished(event -> merge());  // this is necessary, so the waiting text really displays
+    	pause.play();
+    }
+    
     public void merge() {
-    	btnMerge.setDisable(true); txtLog.clear();
+    	txtLog.clear();
     	PdfReader pdfReader = null;
     	
     	try {
@@ -154,6 +171,7 @@ public class Controller {
 			String inputFileName = ""; String selectPages = ""; String[] selectPagesArray;
 			Document pdfIn = null; Document pdfOut = new Document(); PdfCopy copy = null;
 			
+			txtLog.clear();
 			txtLog.appendText(description + "\n\n");
 			copy = new PdfCopy(pdfOut, new FileOutputStream(saveFile));
 			pdfOut.open();
@@ -169,7 +187,21 @@ public class Controller {
 				selectPagesArray = selectPages.split(",");
 				
 				for (String p : selectPagesArray) {
-					txtLog.appendText("Copying page " + p + "...\n");
+					if (p.equals("*")) {  // all pages of file
+						for (int j = 1; j <= pdfReader.getNumberOfPages(); j++) {
+							txtLog.appendText("Copying page " + j + "...\n");
+							copy.addPage(copy.getImportedPage(pdfReader, Integer.valueOf(j)));
+						}
+						continue;
+					} else if (p.contains("-")) {  // page range
+						String[] pageRange = p.split("-");
+						for (int j = Integer.valueOf(pageRange[0]); j <= Integer.valueOf(pageRange[1]); j++) {
+							txtLog.appendText("Copying page " + j + "...\n");
+							copy.addPage(copy.getImportedPage(pdfReader, Integer.valueOf(j)));
+						}
+						continue;
+					}
+					txtLog.appendText("Copying page " + p + "...\n");  // (default) single case
 					copy.addPage(copy.getImportedPage(pdfReader, Integer.valueOf(p)));
 				}
 				
@@ -177,12 +209,38 @@ public class Controller {
 			}
 			
 			pdfOut.close();
+    	} catch (InvalidFileFormatException e) {
+    		showError(e, "The selector file has an invalid format.");
 		} catch (Exception e) {
 			showError(e);
 		}
     	
     	btnMerge.setDisable(false);
+    	btnResult.setDisable(false);
     	txtLog.appendText("Finished.");
+    }
+    
+    public void openResult() {
+    	try {
+    		hostServices.showDocument("file:///" + saveFile);
+    	} catch (Exception e) {
+    		showError(e);
+    	}
+    }
+    
+    public void openWebsite() {
+    	hostServices.showDocument("https://github.com/woborschilde/jpdfsm/releases");
+    }
+    
+    public void showHelp() {
+    	Alert alert = new Alert(AlertType.INFORMATION);
+    	alert.setTitle("About");
+    	alert.setHeaderText(null);
+    	
+    	// This is necessary as the text would otherwise cut off on Linux systems.
+    	alert.getDialogPane().setContent(new Label("This program selects pages from a set of PDF files\nspecified in an INI Selector File and merges them to an output file.\n\nIt includes iText PDF to copy pages (this also works\nwith \"corrupted\" files) as well as ini4j for the INI file I/O implementation."));
+    	
+    	alert.showAndWait();
     }
     
     // Source: https://o7planning.org/en/11529/javafx-alert-dialogs-tutorial
@@ -190,6 +248,28 @@ public class Controller {
         Alert alert = new Alert(AlertType.ERROR);
         alert.setTitle("Error alert");
         alert.setHeaderText(e.getMessage());
+ 
+        VBox dialogPaneContent = new VBox();
+ 
+        Label label = new Label("Stack Trace:");
+ 
+        String stackTrace = this.getStackTrace(e);
+        TextArea textArea = new TextArea();
+        textArea.setText(stackTrace);
+ 
+        dialogPaneContent.getChildren().addAll(label, textArea);
+ 
+        // Set content for Dialog Pane
+        alert.getDialogPane().setContent(dialogPaneContent);
+ 
+        alert.showAndWait();
+    }
+    
+    // Source: https://o7planning.org/en/11529/javafx-alert-dialogs-tutorial
+    private void showError(Exception e, String s) {
+        Alert alert = new Alert(AlertType.ERROR);
+        alert.setTitle("Error alert");
+        alert.setHeaderText(s);
  
         VBox dialogPaneContent = new VBox();
  
